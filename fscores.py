@@ -3,14 +3,19 @@ from django.core.management import setup_environ
 setup_environ(settings)
 
 from dashboard.models import *
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 import datetime
 #import xlwt
 import pickle
 
-study_block_name = 'Keonjhar'
+study_block_name = 'Patna'
+block = block = Block.objects.get(block_name=study_block_name)
+person_list = Person.objects.filter(village__block=block).filter(group__isnull=False).filter(village__block=F('group__village__block'))
 
-scr_list = Person.objects.filter(village__block__block_name=study_block_name).annotate(adoptions=Count('personadoptpractice')).filter(group__isnull=False).values_list('id','personmeetingattendance__screening__videoes_screened','personmeetingattendance__screening__date')
+
+# compute scr_list - list of person_id, video_id, date
+scr_list = person_list.values_list('id','personmeetingattendance__screening__videoes_screened','personmeetingattendance__screening__date')
+# compute scr_date - dictionary indexed by video, and then by person with value date_of_screening
 scr_date = {}
 for person_id, video_id, date in scr_list:
     if not scr_date.has_key(person_id):
@@ -22,12 +27,14 @@ for person_id, video_id, date in scr_list:
                 scr_date[person_id][video_id] = date
 
 
-adopter_ids =  Person.objects.filter(village__block__block_name=study_block_name).annotate(adoptions=Count('personadoptpractice')).filter(group__isnull=False).values_list('id', flat=True)
+# compute adopter_ids, dictionary indexed by person with (person_id, video_id, date_of_adoption)
+adopter_ids = person_list.values_list('id', flat=True)
 adoption_list = []
 for id in adopter_ids:
     row = PersonAdoptPractice.objects.filter(person=id).values('person','video', 'date_of_adoption')
     adoption_list.extend(row)
 
+# compute adoption_date, dictionary indexed by video, and then by person with value date_of_adoption
 adoption_date = {}
 for row in adoption_list:
     if not adoption_date.has_key(row['video']):
@@ -58,32 +65,37 @@ fscore = {}
 from dashboard.models import *
 import pickle
 
-video_count = {}
-
+# compute video_count - how many people have seen a video in a group
+new_video_group_count = {}
 for video in adoption_date.keys():
-    video_count[video] = {}
-    for village in Village.objects.filter(block__block_name=study_block_name):
-        video_count[video][village.id] = Person.objects.filter(village = village, personmeetingattendance__screening__videoes_screened=video).count()
+    new_video_group_count[video] = {}
+    for group in PersonGroups.objects.filter(village__block=block):
+        new_video_group_count[video][group.id] = person_list.filter(group = group, personmeetingattendance__screening__videoes_screened=video).count()
 
-video_block_count = {}
-video_dist_count = {}
+# compute video_count - how many people have seen a video in a village, block
+new_video_village_count = {}
+new_video_block_count = {}
 for video in adoption_date.keys():
-    video_block_count[video] = {}
-    video_dist_count[video] = 0
-    for block in Block.objects.filter(block_name=study_block_name):
-        video_block_count[video][block.id] = Person.objects.filter(village__block = block, personmeetingattendance__screening__videoes_screened=video).count()
-        video_dist_count[video] = video_dist_count[video] + video_block_count[video][block.id]
+    new_video_village_count[video] = {}
+    new_video_block_count[video] = 0
+    for village in Village.objects.filter(block=block):
+        new_video_village_count[video][village.id] = person_list.filter(village = village, personmeetingattendance__screening__videoes_screened=video).count()
+        new_video_block_count[video] = video_block_count[video] + new_video_village_count[video][village.id]
 
 group_dist = {}  
 for v1 in PersonGroups.objects.filter(village__block__block_name=study_block_name):
     group_dist[v1.id] = {}
     for v2 in PersonGroups.objects.filter(village__block__block_name=study_block_name):
-        if v1 == v2:
-            group_dist[v1.id][v2.id] = 1
-        elif v1.village == v2.village:
-            group_dist[v1.id][v2.id] = 4
-        else:
-            group_dist[v1.id][v2.id] = 16
+        try:
+            if v1 == v2:
+                group_dist[v1.id][v2.id] = 1
+            elif v1.village == v2.village:
+                group_dist[v1.id][v2.id] = 4
+            else:
+                group_dist[v1.id][v2.id] = 16
+        catch:
+            print "ERROR"
+            continue
 
 def get_confused(person):
     person_obj = Person.objects.get(id=person)
@@ -94,13 +106,11 @@ def get_confused(person):
         'fn' : 0,
         }
     for video, scr_date in video_seen_list.iteritems():
-        person_vid = Person.objects.filter(personmeetingattendance__screening__videoes_screened=video)
-        
         if adoption_date.has_key(video):
-            num_people = video_dist_count[video]
-            num_people_block = video_block_count[video][person_obj.village.block.id]
-            num_people_village = video_count[video][person_obj.village.id]
-            total_num_people = num_people_village + (num_people_block - num_people_village)/2 + (num_people - num_people_block)/3
+            num_people_group = new_video_group_count[video][person_obj.group.id]
+            num_people_village = new_video_village_count[video][person_obj.village.id]
+            num_people_block = new_video_block_count[video]
+            total_num_people = num_people_group + (num_people_village - num_people_group)/4 + (num_people_block - num_people_village)/16
             if adoption_date[video].has_key(person): 
                 # person has adopted
                 date = adoption_date[video][person]
