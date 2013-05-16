@@ -1,17 +1,19 @@
 import settings
 from django.core.management import setup_environ
 setup_environ(settings)
-
+import gc
 from dashboard.models import *
 from django.db.models import Count, F, Q
 import datetime
 #import xlwt
 import pickle
-
-study_block_name = 'Patna'
+from datetime import timedelta
+print datetime.datetime.now()
+gc.enable()
+study_block_name = 'keonjhar'
 block = block = Block.objects.get(block_name=study_block_name)
 person_list = Person.objects.filter(village__block=block).filter(group__isnull=False).filter(village__block=F('group__village__block'))
-
+print len(person_list)
 
 # compute scr_list - list of person_id, video_id, date
 scr_list = person_list.values_list('id','personmeetingattendance__screening__videoes_screened','personmeetingattendance__screening__date')
@@ -80,7 +82,7 @@ for video in adoption_date.keys():
     new_video_block_count[video] = 0
     for village in Village.objects.filter(block=block):
         new_video_village_count[video][village.id] = person_list.filter(village = village, personmeetingattendance__screening__videoes_screened=video).count()
-        new_video_block_count[video] = video_block_count[video] + new_video_village_count[video][village.id]
+        new_video_block_count[video] = new_video_block_count[video] + new_video_village_count[video][village.id]
 
 group_dist = {}  
 for v1 in PersonGroups.objects.filter(village__block__block_name=study_block_name):
@@ -93,7 +95,7 @@ for v1 in PersonGroups.objects.filter(village__block__block_name=study_block_nam
                 group_dist[v1.id][v2.id] = 4
             else:
                 group_dist[v1.id][v2.id] = 16
-        catch:
+        except:
             print "ERROR"
             continue
 
@@ -114,10 +116,11 @@ def get_confused(person):
             if adoption_date[video].has_key(person): 
                 # person has adopted
                 date = adoption_date[video][person]
+				one_week_date = date + timedelta(days = 7)
                 tmp_tp = 0
                 for p, date_of_adoption in adoption_date[video].iteritems():
                     p_obj = Person.objects.get(id=p)
-                    if date_of_adoption >= date:
+                    if date_of_adoption >= one_week_date:
                         dist = group_dist[person_obj.group.id][p_obj.group.id]
                         tmp_tp = tmp_tp + 1.0/dist
                 confusion['tp'] = confusion['tp'] + tmp_tp
@@ -127,7 +130,7 @@ def get_confused(person):
                 tmp = 0
                 for p, date_of_adoption in adoption_date[video].iteritems():
                     p_obj = Person.objects.get(id=p)
-                    if date_of_adoption > date:
+                    if date_of_adoption > one_week_date:
                         dist = group_dist[person_obj.group.id][p_obj.group.id]
                         tmp = tmp + 1.0/dist
                 confusion['fn'] = confusion['fn'] + tmp
@@ -136,16 +139,17 @@ def get_confused(person):
 
 for person, video_seen_list in screening_date.iteritems():
     confusion = get_confused(person)
+    gc.collect()
     try:
         fscore[person] = 2.0*confusion['tp']/(2*confusion['tp'] + confusion['fn'] + confusion['fp'])
         print str(person) + " " + str(fscore[person])
     except ZeroDivisionError:
         fscore[person] = 0
+print datetime.datetime.now()
       
 fp = open('keonjhar','wb')
 pickle.dump({
     'fscore': fscore,
 },fp)
 fp.close()
-
 
