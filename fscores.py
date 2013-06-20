@@ -116,11 +116,11 @@ def get_confused(person):
             if adoption_date[video].has_key(person): 
                 # person has adopted
                 date = adoption_date[video][person]
-				one_week_date = date + timedelta(days = 7)
                 tmp_tp = 0
                 for p, date_of_adoption in adoption_date[video].iteritems():
                     p_obj = Person.objects.get(id=p)
-                    if date_of_adoption >= one_week_date:
+                    one_week_date = date_of_adoption + timedelta(days = 7)
+                    if one_week_date >= date:
                         dist = group_dist[person_obj.group.id][p_obj.group.id]
                         tmp_tp = tmp_tp + 1.0/dist
                 confusion['tp'] = confusion['tp'] + tmp_tp
@@ -130,7 +130,7 @@ def get_confused(person):
                 tmp = 0
                 for p, date_of_adoption in adoption_date[video].iteritems():
                     p_obj = Person.objects.get(id=p)
-                    if date_of_adoption > one_week_date:
+                    if date_of_adoption > date:
                         dist = group_dist[person_obj.group.id][p_obj.group.id]
                         tmp = tmp + 1.0/dist
                 confusion['fn'] = confusion['fn'] + tmp
