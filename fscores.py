@@ -24,6 +24,7 @@ def get_person_list(params, village_list):
 def compute_group_distance_matrix(log, params, village_list):
     distance = defaultdict(dict)
     all_groups = PersonGroups.objects.select_related('village').filter(village__in=village_list).all()
+    log.write(str(len(all_groups)))
     try:
         for group1 in all_groups:
             for group2 in all_groups:
