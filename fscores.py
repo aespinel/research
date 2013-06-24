@@ -75,8 +75,7 @@ def compute_viewing_stats(params, person_list, video_list):
 
 # Dictionary indexed by video, and then by person with value date_of_adoption
 def compute_adoption_stats(params, person_list, video_list):
-    adoptions = PersonAdoptPractice.objects.filter(person__in=person_list).filter(video__in=video_list)
-    adoption_list = adoptions.order_by('person__id').values('person','video', 'date_of_adoption')
+    adoption_list = PersonAdoptPractice.objects.filter(person__in=person_list).filter(video__in=video_list).values('person','video', 'date_of_adoption')
     adoption_date = defaultdict(dict)
     number_of_videos_adopted = defaultdict(lambda: 0)
     for row in adoption_list:
@@ -172,8 +171,8 @@ def compute_fscores():
         except ZeroDivisionError:
             fscore[person] = 0
         result = [person, fscore[person], confusion['tp'], confusion['tn'], confusion['fn'], confusion['fp']]
-        result.extend([len(video_seen_list), adoption_stats['adoption_counts'][person.id]]) 
-        print ','.join([str(x) for x in results])
+        result.extend([len(video_seen_list), adoption_stats['adoption_counts'][person]]) 
+        print ','.join([str(x) for x in result])
     log.write(str(datetime.now()))
     log.close()
 
