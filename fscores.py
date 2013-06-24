@@ -171,4 +171,6 @@ def compute_fscores():
             fscore[person] = 0
         print ','.join([str(person), str(fscore[person]), str(confusion['tp']), str(confusion['tn']), str(confusion['fn']), str(confusion['fp']), str(len(video_seen_list)), str(adoption_stats['adoption_counts'][person.id])])
     log.write(str(datetime.now()))
+    log.close()
+
 
