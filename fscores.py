@@ -139,6 +139,7 @@ def compute_fscores():
     # time period
     # distance
     # window
+    print 'person_id, fscore, tp, tn, fn, fp, num_videos_seen, num_videos_adopted'
     log = open('logfile.txt', 'a')
     log.write(str(datetime.now()))
     gc.enable()
@@ -170,7 +171,9 @@ def compute_fscores():
             fscore[person] = 2.0*confusion['tp']/(2*confusion['tp'] + confusion['fn'] + confusion['fp'])
         except ZeroDivisionError:
             fscore[person] = 0
-        print ','.join([str(person), str(fscore[person]), str(confusion['tp']), str(confusion['tn']), str(confusion['fn']), str(confusion['fp']), str(len(video_seen_list)), str(adoption_stats['adoption_counts'][person.id])])
+        result = [person, fscore[person], confusion['tp'], confusion['tn'], confusion['fn'], confusion['fp']]
+        result.extend([len(video_seen_list), adoption_stats['adoption_counts'][person.id]]) 
+        print ','.join([str(x) for x in results])
     log.write(str(datetime.now()))
     log.close()
 
