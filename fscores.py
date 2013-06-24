@@ -174,4 +174,4 @@ def compute_fscores():
     log.write(str(datetime.now()))
     log.close()
 
-
+compute_fscores()
