@@ -20,6 +20,17 @@ def get_person_list(params, village_list):
     person_list = person_list.filter(village=F('group__village'))
     return person_list
 
+def get_video_list(params):
+    video_list = Video.objects.filter(village__block__district__district_name=params['district_name'])
+    if params.has_key('paddy') and params.get('paddy') in [0,1]:
+        video_list = video_list.filter(related_practice__practice_sector__name="Agriculture") \
+            .exclude(related_practice__practice_subject=None)
+        if params.get('paddy') is 1:
+            video_list = video_list.filter(related_practice__practice_subject=63)
+        else:
+            video_list = video_list.exclude(related_practice__practice_subject=63)
+    return video_list.values_list('id', flat=True)
+
 def compute_group_distance_matrix(log, params, village_list):
     distance = defaultdict(dict)
     all_groups = PersonGroups.objects.select_related('village').filter(village__in=village_list).all()
@@ -143,6 +154,7 @@ def compute_fscores():
     gc.enable()
     params = {
         'block_name': 'ghatagaon',
+        'district_name': 'keonjhar',
         'distance': {
             'same_group': 1,
             'same_village': 4,
@@ -150,11 +162,12 @@ def compute_fscores():
         },
         'window': 7,
         'village_ids': [10000000019978,10000000019979,10000000019980,10000000019981,10000000019982,10000000019983,10000000019984,10000000019985,10000000019986,10000000019987,10000000019988,10000000019989,10000000019990,10000000019991,10000000019992,10000000019993,10000000019994,10000000019995,10000000019996,10000000019997,10000000020104,10000000020105,10000000020106,10000000020107,10000000020108,10000000020119,10000000020120,10000000020132,10000000020133,10000000020134,10000000020369,10000000020370,10000000020589,10000000020590,10000000020591,10000000020592,10000000020595,10000000020596,10000000020600,10000000020601,10000000020602,10000000020603,10000000020604,10000000020605,10000000020606,10000000020607,10000000020608,10000000020610,10000000020611,10000000020612,10000000020613,10000000020615,10000000020754],
+        'paddy': 0,
     }
     village_list = get_village_list(params)
     person_list = get_person_list(params, village_list)
     group_distance = compute_group_distance_matrix(log, params, village_list)
-    video_list = Video.objects.filter(village__block__district__district_name='keonjhar')
+    video_list = get_video_list(params)
     stats = compute_viewing_stats(params, person_list, video_list)
     screening_date = stats['screening_date']
     viewership_counts = stats['number_of_viewers']
