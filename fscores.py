@@ -5,8 +5,7 @@ setup_environ(settings)
 from collections import defaultdict
 from datetime import datetime, timedelta
 import gc
-import pickle
-from django.db.models import Count, F, Q
+from django.db.models import F
 from dashboard.models import *
 
 def get_village_list(params):
